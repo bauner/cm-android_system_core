@@ -184,11 +184,15 @@ static const struct android_id_info android_ids[] = {
     { "net_admin",     AID_NET_ADMIN, },
     { "net_bw_stats",  AID_NET_BW_STATS, },
     { "qcom_diag", AID_QCOM_DIAG, },
+#if !defined(QCOM_LEGACY_UIDS)
     { "ims", AID_IMS, },
+#endif
     { "net_bw_acct",   AID_NET_BW_ACCT, },
     { "net_bt_stack",  AID_NET_BT_STACK, },
     { "qcom_diag", AID_QCOM_DIAG, },
+#if !defined(QCOM_LEGACY_UIDS)
     { "sensors",       AID_SENSORS, },
+#endif
     { "everybody",     AID_EVERYBODY, },
     { "misc",          AID_MISC, },
     { "nobody",        AID_NOBODY, },
@@ -260,7 +264,9 @@ static const struct fs_path_config android_files[] = {
     /* the following file is INTENTIONALLY set-gid and not set-uid.
      * Do not change. */
     { 02750, AID_ROOT,      AID_INET,      0, "system/bin/netcfg" },
-	{ 00755, AID_ROOT, AID_SHELL, 0, "system/xbin/su" },
+
+    /* CM's daemonized su doesn't need the setuid bit */
+    { 00755, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
     /* the following five files are INTENTIONALLY set-uid, but they
      * are NOT included on user builds. */
     { 06755, AID_ROOT,      AID_ROOT,      0, "system/xbin/librank" },
