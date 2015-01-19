@@ -893,21 +893,6 @@ static int set_time_and_mode(const char *lpath, unsigned int time, unsigned int 
     return r1 ? : r2;
 }
 
-/* Return a copy of the path string with / appended if needed */
-static char *add_slash_to_path(const char *path)
-{
-    if (path[strlen(path) - 1] != '/') {
-        size_t len = strlen(path) + 2;
-        char *path_with_slash = malloc(len);
-        if (path_with_slash == NULL)
-            return NULL;
-        snprintf(path_with_slash, len, "%s/", path);
-        return path_with_slash;
-    } else {
-        return strdup(path);
-    }
-}
-
 static int copy_remote_dir_local(int fd, const char *rpath, const char *lpath,
                                  int copy_attrs)
 {
@@ -915,32 +900,28 @@ static int copy_remote_dir_local(int fd, const char *rpath, const char *lpath,
     copyinfo *ci, *next;
     int pulled = 0;
     int skipped = 0;
-    char *rpath_clean = NULL;
-    char *lpath_clean = NULL;
-    int ret = 0;
-
-    if (rpath[0] == '\0' || lpath[0] == '\0') {
-        ret = -1;
-        goto finish;
-    }
 
     /* Make sure that both directory paths end in a slash. */
-    rpath_clean = add_slash_to_path(rpath);
-    if (!rpath_clean) {
-        ret = -1;
-        goto finish;
+    if (rpath[0] == 0 || lpath[0] == 0) return -1;
+    if (rpath[strlen(rpath) - 1] != '/') {
+        int  tmplen = strlen(rpath) + 2;
+        char *tmp = malloc(tmplen);
+        if (tmp == 0) return -1;
+        snprintf(tmp, tmplen, "%s/", rpath);
+        rpath = tmp;
     }
-    lpath_clean = add_slash_to_path(lpath);
-    if (!lpath_clean) {
-        ret = -1;
-        goto finish;
+    if (lpath[strlen(lpath) - 1] != '/') {
+        int  tmplen = strlen(lpath) + 2;
+        char *tmp = malloc(tmplen);
+        if (tmp == 0) return -1;
+        snprintf(tmp, tmplen, "%s/", lpath);
+        lpath = tmp;
     }
 
-    /* Recursively build the list of files to copy. */
     fprintf(stderr, "pull: building file list...\n");
-    if (remote_build_list(fd, &filelist, rpath_clean, lpath_clean)) {
-        ret = -1;
-        goto finish;
+    /* Recursively build the list of files to copy. */
+    if (remote_build_list(fd, &filelist, rpath, lpath)) {
+        return -1;
     }
 
     for (ci = filelist; ci != 0; ci = next) {
@@ -948,13 +929,11 @@ static int copy_remote_dir_local(int fd, const char *rpath, const char *lpath,
         if (ci->flag == 0) {
             fprintf(stderr, "pull: %s -> %s\n", ci->src, ci->dst);
             if (sync_recv(fd, ci->src, ci->dst, 0 /* no show progress */)) {
-                ret = -1;
-                goto finish;
+                return 1;
             }
 
             if (copy_attrs && set_time_and_mode(ci->dst, ci->time, ci->mode)) {
-                ret = -1;
-                goto finish;
+               return 1;
             }
             pulled++;
         } else {
@@ -967,10 +946,7 @@ static int copy_remote_dir_local(int fd, const char *rpath, const char *lpath,
             pulled, (pulled == 1) ? "" : "s",
             skipped, (skipped == 1) ? "" : "s");
 
-finish:
-    free(lpath_clean);
-    free(rpath_clean);
-    return ret;
+    return 0;
 }
 
 int do_sync_pull(const char *rpath, const char *lpath, int show_progress, int copy_attrs)
@@ -1057,4 +1033,3 @@ int do_sync_sync(const char *lpath, const char *rpath, int listonly)
         return 0;
     }
 }
-

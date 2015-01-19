@@ -76,7 +76,6 @@ void framebuffer_service(int fd, void *cookie)
         exit(1);
     }
 
-	close(fds[1]);
     fd_screencap = fds[0];
 
     /* read w, h & format */
@@ -174,9 +173,10 @@ void framebuffer_service(int fd, void *cookie)
     }
 
 done:
-    close(fds[0]);
+    TEMP_FAILURE_RETRY(waitpid(pid, NULL, 0));
 
-	TEMP_FAILURE_RETRY(waitpid(pid, NULL, 0));
+    close(fds[0]);
+    close(fds[1]);
 pipefail:
     close(fd);
 }
